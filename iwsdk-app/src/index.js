@@ -73,7 +73,7 @@ World.create(document.getElementById('scene-container'), {
     const boardMesh = new Mesh(boardGeometry, boardMaterial);
 
     const entity = world.createTransformEntity(boardMesh);
-    entity.object3D.position.set(0, 1.5, 2);  // CHANGED THIS TO REPOSITION THE BOARD!
+    entity.object3D.position.set(0, 5, -5.5);
     entity.object3D.visible = false;
 
     messageBoard = { canvas, ctx, texture, entity };
@@ -102,6 +102,8 @@ World.create(document.getElementById('scene-container'), {
   const sphereGeometry = new SphereGeometry(0.15, 32, 32);
   const ballMaterial = new MeshStandardMaterial({ color: 'white' });
   const ballMesh = new Mesh(sphereGeometry, ballMaterial);
+
+  // Closer to you than the wall: wall is at z = -3.5, so start around -1.5
   ballMesh.position.set(0.4, 1.6, -1.5);
 
   const ballEntity = world
@@ -165,14 +167,17 @@ World.create(document.getElementById('scene-container'), {
   });
 
   // ---------------- WALL IN THE DISTANCE (STATIC PHYSICS) ----------------
-  const wallZ = 3.5;
+  const wallZ = -3.5;
 
   const wallMesh = new Mesh(
     new PlaneGeometry(4, 2),
     new MeshStandardMaterial({ color: 'gray' })
   );
   wallMesh.position.set(0, 1.5, wallZ);
-  wallMesh.rotation.y = Math.PI;
+
+  // For a plane at negative Z with the camera looking toward negative Z,
+  // rotation.y = 0 shows the front face to the player.
+  wallMesh.rotation.y = 0;
 
   const wallEntity = world.createTransformEntity(wallMesh);
 
@@ -190,11 +195,17 @@ World.create(document.getElementById('scene-container'), {
   world.onUpdate(() => {
     if (homeRunShown) return;
 
-    const ballZ = ballEntity.object3D.position.z;
+    const ballPos = ballEntity.object3D.position;
+    const ballZ = ballPos.z;
 
-    if (ballZ > wallZ) { // CHANGED TO > BECAUSE ITS NOW GOING POSITIVE ON Z AXIS
+    // Slight fudge so we don't need the center to go way past the wall
+    const homeRunLineZ = wallZ - 0.05; // e.g. -3.55
+
+    // Ball moving toward NEGATIVE Z; home run when it goes PAST the wall
+    if (ballZ < homeRunLineZ) {
       homeRunShown = true;
-      console.log('Home run!');
+
+      console.log('Home run! ballZ =', ballZ, 'wallZ =', wallZ);
       showMessage('Home run!');
     }
   });
@@ -225,7 +236,7 @@ World.create(document.getElementById('scene-container'), {
       const ua = (navigator && (navigator.userAgent || '')) || '';
       const hasOculus = /Oculus|Quest|Meta Quest/i.test(ua);
       const isQuest2or3 =
-        /Quest\\s?2|Quest\\s?3|Quest2|Quest3|MetaQuest2|Meta Quest 2/i.test(ua);
+        /Quest\s?2|Quest\s?3|Quest2|Quest3|MetaQuest2|Meta Quest 2/i.test(ua);
       return hasOculus && !isQuest2or3;
     } catch (e) {
       return false;
