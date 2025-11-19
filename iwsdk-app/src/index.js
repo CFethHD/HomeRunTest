@@ -73,7 +73,7 @@ World.create(document.getElementById('scene-container'), {
     const boardMesh = new Mesh(boardGeometry, boardMaterial);
 
     const entity = world.createTransformEntity(boardMesh);
-    entity.object3D.position.set(0, 1.8, -4.5);
+    entity.object3D.position.set(0, 1.5, 2);  // CHANGED THIS TO REPOSITION THE BOARD!
     entity.object3D.visible = false;
 
     messageBoard = { canvas, ctx, texture, entity };
@@ -192,7 +192,7 @@ World.create(document.getElementById('scene-container'), {
 
     const ballZ = ballEntity.object3D.position.z;
 
-    if (ballZ < wallZ) {
+    if (ballZ > wallZ) { // CHANGED TO > BECAUSE ITS NOW GOING POSITIVE ON Z AXIS
       homeRunShown = true;
       console.log('Home run!');
       showMessage('Home run!');
