@@ -18,9 +18,56 @@ import {
   PhysicsShapeType,
   PhysicsState,
   PhysicsSystem,
+  createComponent,
+  createSystem,
+  Types,
 } from '@iwsdk/core';
 
 import { PanelSystem } from './panel.js';
+
+// --- COMPONENT + SYSTEM FOR HOME RUN ----------------------------------
+
+// Tag component to mark the ball we care about
+const HomeRunBall = createComponent('HomeRunBall', {});
+
+// System that runs every frame and checks ball Z vs wall Z
+class HomeRunSystem extends createSystem(
+  {
+    balls: { required: [HomeRunBall] },
+  },
+  {
+    wallZ: { type: Types.Float32, default: -3.5 },
+    showMessageFn: { type: Types.Object, default: null },
+  }
+) {
+  init() {
+    this.triggered = false;
+  }
+
+  update() {
+    if (this.triggered) return;
+
+    const wallZ = this.config.wallZ.peek();
+    const showMessageFn = this.config.showMessageFn.peek();
+    if (!showMessageFn) return;
+
+    for (const entity of this.queries.balls.entities) {
+      const obj = entity.object3D;
+      if (!obj) continue;
+
+      const ballZ = obj.position.z;
+
+      // Ball moving towards negative Z; "past wall" once ballZ < wallZ
+      if (ballZ < wallZ) {
+        this.triggered = true;
+        showMessageFn(); // will show "Home run!"
+        break;
+      }
+    }
+  }
+}
+
+// ----------------------------------------------------------------------
 
 const assets = {};
 
@@ -42,12 +89,16 @@ World.create(document.getElementById('scene-container'), {
 
   // --- REGISTER PHYSICS SYSTEM & COMPONENTS ---
   world
-    .registerSystem(PhysicsSystem) // default gravity [0, -9.81, 0]
+    .registerSystem(PhysicsSystem)
     .registerComponent(PhysicsBody)
-    .registerComponent(PhysicsShape);
+    .registerComponent(PhysicsShape)
+    .registerComponent(HomeRunBall); // our tag component
 
-  // ---------------- MESSAGE BOARD ----------------
-  let messageBoard = null;
+  // -------------------------------------------------------------------
+  // MESSAGE BOARD (same style as treasure-hunt project)
+  // -------------------------------------------------------------------
+
+  let messageBoard; // { canvas, ctx, texture, entity }
 
   function initMessageBoard() {
     if (messageBoard) return messageBoard;
@@ -73,37 +124,59 @@ World.create(document.getElementById('scene-container'), {
     const boardMesh = new Mesh(boardGeometry, boardMaterial);
 
     const entity = world.createTransformEntity(boardMesh);
-    entity.object3D.position.set(0, 5, -5.5);
+
+    // Place board between player (z ~ 0) and wall (z = -3.5)
+    entity.object3D.position.set(0, 1.5, -2);
     entity.object3D.visible = false;
 
     messageBoard = { canvas, ctx, texture, entity };
     return messageBoard;
   }
 
-  function showMessage(text) {
-    const board = initMessageBoard();
-    const { canvas, ctx, texture, entity } = board;
-
+  function showMessage(message) {
+    const { canvas, ctx, texture, entity } = initMessageBoard();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+
+    ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    ctx.fillStyle = 'white';
-    ctx.font = 'bold 200px sans-serif';
+    ctx.font = 'bold 120px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+    ctx.fillStyle = '#111100';
+    ctx.fillText(message, canvas.width / 2, canvas.height / 2);
 
     texture.needsUpdate = true;
     entity.object3D.visible = true;
   }
 
-  // ---------------- BALL (GRABBABLE + PHYSICS) ----------------
+  function hideMessage() {
+    if (!messageBoard) return;
+    const { canvas, ctx, texture, entity } = messageBoard;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    texture.needsUpdate = true;
+    entity.object3D.visible = false;
+  }
+
+  function showTemporaryMessage(message, duration = 2000) {
+    showMessage(message);
+    setTimeout(hideMessage, duration);
+  }
+
+  // Convenience: specific function for the home-run text
+  function showHomeRunMessage() {
+    showTemporaryMessage('Home run!', 4000);
+  }
+
+  // -------------------------------------------------------------------
+  // BALL (GRABBABLE + PHYSICS)
+  // -------------------------------------------------------------------
+
   const sphereGeometry = new SphereGeometry(0.15, 32, 32);
   const ballMaterial = new MeshStandardMaterial({ color: 'white' });
   const ballMesh = new Mesh(sphereGeometry, ballMaterial);
 
-  // Closer to you than the wall: wall is at z = -3.5, so start around -1.5
+  // Start in front of player, closer than the wall
   ballMesh.position.set(0.4, 1.6, -1.5);
 
   const ballEntity = world
@@ -115,14 +188,20 @@ World.create(document.getElementById('scene-container'), {
     });
 
   ballEntity.addComponent(PhysicsShape, {
-    shape: PhysicsShapeType.Auto, // auto-detect sphere
+    shape: PhysicsShapeType.Auto,
   });
 
   ballEntity.addComponent(PhysicsBody, {
-    state: PhysicsState.Dynamic, // falls, collides
+    state: PhysicsState.Dynamic,
   });
 
-  // ---------------- BAT (GRABBABLE + PHYSICS) ----------------
+  // Tag this as the ball our HomeRunSystem should watch
+  ballEntity.addComponent(HomeRunBall);
+
+  // -------------------------------------------------------------------
+  // BAT (GRABBABLE + PHYSICS)
+  // -------------------------------------------------------------------
+
   const batGeometry = new BoxGeometry(0.08, 0.9, 0.08);
   const batMaterial = new MeshStandardMaterial({ color: 'brown' });
   const batMesh = new Mesh(batGeometry, batMaterial);
@@ -139,14 +218,17 @@ World.create(document.getElementById('scene-container'), {
   batEntity.object3D.rotation.z = Math.PI / 2;
 
   batEntity.addComponent(PhysicsShape, {
-    shape: PhysicsShapeType.Auto, // auto-detect box
+    shape: PhysicsShapeType.Auto,
   });
 
   batEntity.addComponent(PhysicsBody, {
     state: PhysicsState.Dynamic,
   });
 
-  // ---------------- FLOOR (STATIC PHYSICS) ----------------
+  // -------------------------------------------------------------------
+  // FLOOR (STATIC PHYSICS)
+  // -------------------------------------------------------------------
+
   const floorMesh = new Mesh(
     new PlaneGeometry(20, 20),
     new MeshStandardMaterial({ color: 'tan' })
@@ -159,14 +241,17 @@ World.create(document.getElementById('scene-container'), {
   });
 
   floorEntity.addComponent(PhysicsShape, {
-    shape: PhysicsShapeType.Auto, // PlaneGeometry -> thin box floor
+    shape: PhysicsShapeType.Auto,
   });
 
   floorEntity.addComponent(PhysicsBody, {
-    state: PhysicsState.Static, // 🚫 will NOT fall now
+    state: PhysicsState.Static,
   });
 
-  // ---------------- WALL IN THE DISTANCE (STATIC PHYSICS) ----------------
+  // -------------------------------------------------------------------
+  // WALL (STATIC PHYSICS)
+  // -------------------------------------------------------------------
+
   const wallZ = -3.5;
 
   const wallMesh = new Mesh(
@@ -174,43 +259,33 @@ World.create(document.getElementById('scene-container'), {
     new MeshStandardMaterial({ color: 'gray' })
   );
   wallMesh.position.set(0, 1.5, wallZ);
-
-  // For a plane at negative Z with the camera looking toward negative Z,
-  // rotation.y = 0 shows the front face to the player.
   wallMesh.rotation.y = 0;
 
   const wallEntity = world.createTransformEntity(wallMesh);
 
   wallEntity.addComponent(PhysicsShape, {
-    shape: PhysicsShapeType.Auto, // thin box wall
+    shape: PhysicsShapeType.Auto,
   });
 
   wallEntity.addComponent(PhysicsBody, {
     state: PhysicsState.Static,
   });
 
-  // ---------------- HOME RUN CHECK ----------------
-  let homeRunShown = false;
+  // -------------------------------------------------------------------
+  // REGISTER HOME RUN SYSTEM (this is what actually checks each frame)
+  // -------------------------------------------------------------------
 
-  world.onUpdate(() => {
-    if (homeRunShown) return;
-
-    const ballPos = ballEntity.object3D.position;
-    const ballZ = ballPos.z;
-
-    // Slight fudge so we don't need the center to go way past the wall
-    const homeRunLineZ = wallZ - 0.05; // e.g. -3.55
-
-    // Ball moving toward NEGATIVE Z; home run when it goes PAST the wall
-    if (ballZ < homeRunLineZ) {
-      homeRunShown = true;
-
-      console.log('Home run! ballZ =', ballZ, 'wallZ =', wallZ);
-      showMessage('Home run!');
-    }
+  world.registerSystem(HomeRunSystem, {
+    configData: {
+      wallZ,
+      showMessageFn: showHomeRunMessage,
+    },
   });
 
-  // ---------------- QUEST 1 PANEL (UNCHANGED) ----------------
+  // -------------------------------------------------------------------
+  // QUEST 1 PANEL (unchanged)
+  // -------------------------------------------------------------------
+
   world.registerSystem(PanelSystem);
 
   if (isMetaQuest1()) {
@@ -236,7 +311,7 @@ World.create(document.getElementById('scene-container'), {
       const ua = (navigator && (navigator.userAgent || '')) || '';
       const hasOculus = /Oculus|Quest|Meta Quest/i.test(ua);
       const isQuest2or3 =
-        /Quest\s?2|Quest\s?3|Quest2|Quest3|MetaQuest2|Meta Quest 2/i.test(ua);
+        /Quest\\s?2|Quest\\s?3|Quest2|Quest3|MetaQuest2|Meta Quest 2/i.test(ua);
       return hasOculus && !isQuest2or3;
     } catch (e) {
       return false;
