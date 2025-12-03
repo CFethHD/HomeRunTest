@@ -21,11 +21,34 @@ import {
   createComponent,
   createSystem,
   Types,
+  AssetManager,
+  AssetType,
 } from '@iwsdk/core';
 
 import { PanelSystem } from './panel.js';
 
-const assets = {};
+/* -----------------------------------------------------------
+   ADJUST THESE VALUES ONLY TO MOVE THE FIELD
+   (reload after each change and see where it ends up)
+----------------------------------------------------------- */
+const FIELD_POS_X = -37.5; // left (-) / right (+)
+const FIELD_POS_Y = 21;    // down (-) / up (+)
+const FIELD_POS_Z = 60;    // towards you (-) / away from you (+)
+const FIELD_SCALE  = 1;    // 1 = original size, 2 = double, 0.5 = half
+
+// If you need to tilt it later, change these:
+const FIELD_ROT_X = 0;     // radians
+const FIELD_ROT_Y = 0;
+const FIELD_ROT_Z = 0;
+/* --------------------------------------------------------- */
+
+const assets = {
+  rugbyField: {
+    url: '/rugby_field.glb', // file in public/
+    type: AssetType.GLTF,
+    priority: 'critical',
+  },
+};
 
 // --- COMPONENT + SYSTEM FOR HOME RUN ----------------------------------
 
@@ -34,7 +57,7 @@ const HomeRunBall = createComponent('HomeRunBall', {});
 class HomeRunSystem extends createSystem(
   { balls: { required: [HomeRunBall] } },
   {
-    wallZ: { type: Types.Float32, default: -3.5 },
+    wallZ: { type: Types.Float32, default: -3.5 }, // logical "line", no mesh
     show: { type: Types.Object, default: null },
   }
 ) {
@@ -53,7 +76,7 @@ class HomeRunSystem extends createSystem(
       const z = e.object3D?.position.z ?? 0;
       if (z < wallZ) {
         this.triggered = true;
-        show('Home run!');
+        show('3 Points for Dublin!');
         break;
       }
     }
@@ -87,7 +110,7 @@ function createMessageBoard(world) {
     const mesh = new Mesh(geo, mat);
 
     const entity = world.createTransformEntity(mesh);
-    entity.object3D.position.set(0, 1.5, -3.2); 
+    entity.object3D.position.set(0, 3.5, -6);
     entity.object3D.visible = false;
 
     board = { canvas, ctx, texture, entity };
@@ -111,7 +134,7 @@ function createMessageBoard(world) {
   return { show };
 }
 
-// WORLD SETUP 
+// WORLD SETUP ----------------------------------------------------------
 
 World.create(document.getElementById('scene-container'), {
   assets,
@@ -122,7 +145,7 @@ World.create(document.getElementById('scene-container'), {
   },
   features: { grabbing: true, locomotion: true },
 }).then((world) => {
-  const wallZ = -3.5;
+  const wallZ = -3.5; // still used by HomeRunSystem, but no physical wall
 
   world
     .registerSystem(PhysicsSystem)
@@ -132,9 +155,43 @@ World.create(document.getElementById('scene-container'), {
 
   const board = createMessageBoard(world);
 
-  // Ball
+  // --- RUGBY FIELD (VISUAL ONLY) --------------------------------------
+  try {
+    const gltf = AssetManager.getGLTF('rugbyField');
+    if (gltf) {
+      const fieldModel = gltf.scene || gltf.scenes?.[0];
+      const fieldEntity = world.createTransformEntity(fieldModel);
+
+      fieldEntity.object3D.position.set(FIELD_POS_X, FIELD_POS_Y, FIELD_POS_Z);
+      fieldEntity.object3D.rotation.set(FIELD_ROT_X, FIELD_ROT_Y, FIELD_ROT_Z);
+      fieldEntity.object3D.scale.set(FIELD_SCALE, FIELD_SCALE, FIELD_SCALE);
+    } else {
+      console.warn('rugbyField GLTF not found in AssetManager');
+    }
+  } catch (err) {
+    console.error('Failed to load rugbyField GLB:', err);
+  }
+
+  // --- INVISIBLE FLOOR FOR LOCOMOTION + PHYSICS -----------------------
+  const floorMesh = new Mesh(
+    new PlaneGeometry(40, 40),
+    new MeshStandardMaterial({
+      color: 'white',
+      transparent: true,
+      opacity: 0, // invisible but collidable
+    })
+  );
+  floorMesh.rotation.x = -Math.PI / 2;
+  floorMesh.position.set(0, 0, 0);
+
+  const floor = world.createTransformEntity(floorMesh);
+  floor.addComponent(LocomotionEnvironment, { type: EnvironmentType.STATIC });
+  floor.addComponent(PhysicsShape, { shape: PhysicsShapeType.Auto });
+  floor.addComponent(PhysicsBody, { state: PhysicsState.Static });
+
+  // --- BALL -----------------------------------------------------------
   const ballMesh = new Mesh(
-    new SphereGeometry(0.15, 32, 32),
+    new SphereGeometry(0.15, 10, 10),
     new MeshStandardMaterial({ color: 'white' })
   );
   ballMesh.position.set(0.4, 1.6, -1.5);
@@ -146,7 +203,7 @@ World.create(document.getElementById('scene-container'), {
   ball.addComponent(PhysicsBody, { state: PhysicsState.Dynamic });
   ball.addComponent(HomeRunBall);
 
-  // Bat
+  // --- BAT ------------------------------------------------------------
   const batMesh = new Mesh(
     new BoxGeometry(0.08, 0.9, 0.08),
     new MeshStandardMaterial({ color: 'brown' })
@@ -160,28 +217,7 @@ World.create(document.getElementById('scene-container'), {
   bat.addComponent(PhysicsShape, { shape: PhysicsShapeType.Auto });
   bat.addComponent(PhysicsBody, { state: PhysicsState.Dynamic });
 
-  // Floor
-  const floorMesh = new Mesh(
-    new PlaneGeometry(20, 20),
-    new MeshStandardMaterial({ color: 'tan' })
-  );
-  floorMesh.rotation.x = -Math.PI / 2;
-  const floor = world.createTransformEntity(floorMesh);
-  floor.addComponent(LocomotionEnvironment, { type: EnvironmentType.STATIC });
-  floor.addComponent(PhysicsShape, { shape: PhysicsShapeType.Auto });
-  floor.addComponent(PhysicsBody, { state: PhysicsState.Static });
-
-  // Wall
-  const wallMesh = new Mesh(
-    new PlaneGeometry(4, 2),
-    new MeshStandardMaterial({ color: 'gray' })
-  );
-  wallMesh.position.set(0, 1.5, wallZ);
-  const wall = world.createTransformEntity(wallMesh);
-  wall.addComponent(PhysicsShape, { shape: PhysicsShapeType.Auto });
-  wall.addComponent(PhysicsBody, { state: PhysicsState.Static });
-
-  // Home-run system
+  // --- HOME-RUN SYSTEM (no physical wall) -----------------------------
   world.registerSystem(HomeRunSystem, {
     configData: {
       wallZ,
@@ -189,7 +225,7 @@ World.create(document.getElementById('scene-container'), {
     },
   });
 
-  // Quest panel (minimal)
+  // --- QUEST PANEL ----------------------------------------------------
   world.registerSystem(PanelSystem);
   if (isMetaQuest1()) {
     world
