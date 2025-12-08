@@ -87,7 +87,7 @@ const HomeRunBall = createComponent('HomeRunBall', {});
 class HomeRunSystem extends createSystem(
   { balls: { required: [HomeRunBall] } },
   {
-    wallZ:    { type: Types.Float32, default: -5 },  // z line to score past
+    wallZ:    { type: Types.Float32, default: -5.32 },  // z line to score past
     show:     { type: Types.Object,  default: null },
 
     // X range of the posts (goal mouth)
@@ -183,7 +183,7 @@ World.create(document.getElementById('scene-container'), {
   },
   features: { grabbing: true, locomotion: true },
 }).then((world) => {
-  const wallZ = -5;
+  const wallZ = -5.32;
 
   world
     .registerSystem(PhysicsSystem)
@@ -293,7 +293,7 @@ bat.addComponent(PhysicsBody, { state: PhysicsState.Dynamic });
       side: 2,
     })
   );
-  goalieMesh.position.set(0, 1.05, -5);
+  goalieMesh.position.set(0, 1.05, -4.5);
   goalieMesh.lookAt(0, 1.05, 0); // face towards the player/origin
   world.createTransformEntity(goalieMesh);
 
