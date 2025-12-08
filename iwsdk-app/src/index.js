@@ -303,7 +303,7 @@ bat.addComponent(PhysicsBody, { state: PhysicsState.Dynamic });
 const netTexture = createNetTexture();
 
 const netMesh = new Mesh(
-  new PlaneGeometry(8, 5), // size of back net
+  new PlaneGeometry(8, 10), // size of back net
   new MeshStandardMaterial({
     map: netTexture,
     transparent: true,
