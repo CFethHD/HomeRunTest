@@ -30,6 +30,37 @@ import {
 
 import { PanelSystem } from './panel.js';
 
+// --- PROCEDURAL NET TEXTURE -----------------------------------------
+function createNetTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1024;
+  canvas.height = 1024;
+
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+  ctx.lineWidth = 2;
+
+  const step = 64; // net square size
+
+  for (let x = 0; x <= canvas.width; x += step) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, canvas.height);
+    ctx.stroke();
+  }
+
+  for (let y = 0; y <= canvas.height; y += step) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(canvas.width, y);
+    ctx.stroke();
+  }
+
+  return new CanvasTexture(canvas);
+}
+
 /* -----------------------------------------------------------
    FIELD TRANSFORM
 ----------------------------------------------------------- */
@@ -261,11 +292,33 @@ bat.addComponent(PhysicsBody, { state: PhysicsState.Dynamic });
     new MeshBasicMaterial({
       map: goalieTexture,
       transparent: true,
+      side: 2,
     })
   );
   goalieMesh.position.set(0, 1.05, -5);
   goalieMesh.lookAt(0, 1.05, 0); // face towards the player/origin
   world.createTransformEntity(goalieMesh);
+
+  // --- BACK NET IMAGE (BEHIND GOAL) ---------------------------------
+const netTexture = createNetTexture();
+
+const netMesh = new Mesh(
+  new PlaneGeometry(8, 5), // size of back net
+  new MeshStandardMaterial({
+    map: netTexture,
+    transparent: true,
+    opacity: 0.8,
+    side: 2, // DoubleSide
+    depthWrite: false,
+  })
+);
+
+netMesh.position.set(0, 2.5, -7);
+netMesh.lookAt(0, 2.5, 0);
+
+const backNet = world.createTransformEntity(netMesh);
+backNet.addComponent(PhysicsShape, { shape: PhysicsShapeType.Auto });
+backNet.addComponent(PhysicsBody, { state: PhysicsState.Static });
 
   // --- SCORING SYSTEM ------------------------------------------------
   world.registerSystem(HomeRunSystem, {
