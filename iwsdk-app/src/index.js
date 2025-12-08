@@ -25,6 +25,7 @@ import {
   Types,
   AssetManager,
   AssetType,
+  Group,
 } from '@iwsdk/core';
 
 import { PanelSystem } from './panel.js';
@@ -196,7 +197,7 @@ World.create(document.getElementById('scene-container'), {
 
   // --- BALL ----------------------------------------------------------
   const ballMesh = new Mesh(
-    new SphereGeometry(0.15, 12, 12),
+    new SphereGeometry(0.10, 12, 12),
     new MeshStandardMaterial({ color: 'white' })
   );
   ballMesh.position.set(0.4, 1.6, -1.5);
@@ -207,28 +208,50 @@ World.create(document.getElementById('scene-container'), {
   ball.addComponent(PhysicsBody, { state: PhysicsState.Dynamic });
   ball.addComponent(HomeRunBall);
 
-  // --- BAT -----------------------------------------------------------
-  const batMesh = new Mesh(
-    new BoxGeometry(0.08, 0.9, 0.08),
-    new MeshStandardMaterial({ color: 'brown' })
-  );
-  batMesh.position.set(-0.4, 1.5, -1.5);
-  batMesh.rotation.z = Math.PI / 2;
-  const bat = world.createTransformEntity(batMesh);
-  bat.addComponent(Interactable);
-  bat.addComponent(OneHandGrabbable, { translate: true, rotate: true });
-  bat.addComponent(PhysicsShape, { shape: PhysicsShapeType.Auto });
-  bat.addComponent(PhysicsBody, { state: PhysicsState.Dynamic });
+  // --- BAT (HURLEY) ------------------------------------------------------
+const hurley = new Group();
 
-  // --- GOALIE PHYSICS BLOCKER (INVISIBLE) ----------------------------
-  const blockerMesh = new Mesh(
-    new BoxGeometry(0.8, 1.9, 0.3),
-    new MeshStandardMaterial({ transparent: true, opacity: 0 })
-  );
-  blockerMesh.position.set(0, 1, -3.75);
-  const blocker = world.createTransformEntity(blockerMesh);
-  blocker.addComponent(PhysicsShape, { shape: PhysicsShapeType.Auto });
-  blocker.addComponent(PhysicsBody, { state: PhysicsState.Static });
+// Grip (black tape at the top)
+const gripGeo = new BoxGeometry(0.035, 0.25, 0.035);
+const gripMat = new MeshStandardMaterial({ color: '#111111' });
+const gripMesh = new Mesh(gripGeo, gripMat);
+gripMesh.position.set(0, 0.75, 0);
+hurley.add(gripMesh);
+
+// Main handle (same thin stick you liked)
+const handleGeo = new BoxGeometry(0.04, 0.55, 0.04);
+const handleMat = new MeshStandardMaterial({ color: '#c5a376' });
+const handleMesh = new Mesh(handleGeo, handleMat);
+handleMesh.position.set(0, 0.4, 0);
+hurley.add(handleMesh);
+
+// Thicker body / neck near the bas
+const neckGeo = new BoxGeometry(0.07, 0.22, 0.05);
+const neckMesh = new Mesh(neckGeo, handleMat);
+// This sits right at the bottom of the handle and widens out
+neckMesh.position.set(0, 0.05, 0);
+hurley.add(neckMesh);
+
+// Bas (smaller + connected to the neck)
+const basGeo = new SphereGeometry(0.09, 16, 16);
+const basMesh = new Mesh(basGeo, handleMat);
+
+// Flatten and widen it so it looks like the paddle
+basMesh.scale.set(1.4, 0.45, 0.9);
+// Move it so it overlaps the neck slightly (no gap)
+basMesh.position.set(0, -0.09, 0.06);
+
+hurley.add(basMesh);
+
+// Position the whole hurley in front of the player
+hurley.position.set(-0.4, 1.5, -1.5);
+hurley.rotation.z = Math.PI / 2;
+
+const bat = world.createTransformEntity(hurley);
+bat.addComponent(Interactable);
+bat.addComponent(OneHandGrabbable, { translate: true, rotate: true });
+bat.addComponent(PhysicsShape, { shape: PhysicsShapeType.Auto });
+bat.addComponent(PhysicsBody, { state: PhysicsState.Dynamic });
 
   // --- GOALIE IMAGE --------------------------------------------------
   const goalieTexture = new TextureLoader().load('/gaa_goalie.png');
@@ -240,7 +263,7 @@ World.create(document.getElementById('scene-container'), {
       transparent: true,
     })
   );
-  goalieMesh.position.set(0, 1.05, -3.9);
+  goalieMesh.position.set(0, 1.05, -5);
   goalieMesh.lookAt(0, 1.05, 0); // face towards the player/origin
   world.createTransformEntity(goalieMesh);
 
