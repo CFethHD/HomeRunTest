@@ -61,9 +61,7 @@ function createNetTexture() {
   return new CanvasTexture(canvas);
 }
 
-/* -----------------------------------------------------------
-   FIELD TRANSFORM
------------------------------------------------------------ */
+// the field
 const FIELD_POS_X = -37.5;
 const FIELD_POS_Y = 21;
 const FIELD_POS_Z = 60;
