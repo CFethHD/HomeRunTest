@@ -152,39 +152,43 @@ World.create(document.getElementById('scene-container'), {
   const board = createMessageBoard(world);
 
   // --- FIELD ---------------------------------------------------------
-  const gltf = AssetManager.getGLTF('rugbyField');
-  if (gltf) {
-    const field = world.createTransformEntity(gltf.scene);
-    field.object3D.position.set(FIELD_POS_X, FIELD_POS_Y, FIELD_POS_Z);
-    field.object3D.rotation.set(FIELD_ROT_X, FIELD_ROT_Y, FIELD_ROT_Z);
-    field.object3D.scale.setScalar(FIELD_SCALE);
+  try {
+    const gltf = AssetManager.getGLTF('rugbyField');
+    if (gltf) {
+      const fieldScene = gltf.scene || gltf.scenes?.[0];
+      const field = world.createTransformEntity(fieldScene);
+      field.object3D.position.set(FIELD_POS_X, FIELD_POS_Y, FIELD_POS_Z);
+      field.object3D.rotation.set(FIELD_ROT_X, FIELD_ROT_Y, FIELD_ROT_Z);
+      field.object3D.scale.set(FIELD_SCALE, FIELD_SCALE, FIELD_SCALE);
+    }
+  } catch (e) {
+    console.error('Failed to load rugbyField:', e);
   }
 
-  // --- FLOOR ---------------------------------------------------------
-// --- INVISIBLE FLOOR FOR LOCOMOTION + PHYSICS -----------------------
-const floorMesh = new Mesh(
-  new PlaneGeometry(40, 40),
-  new MeshStandardMaterial({
-    color: 'white',
-    transparent: true,
-    opacity: 0, // invisible but collidable
-  })
-);
-floorMesh.rotation.x = -Math.PI / 2;
-floorMesh.position.set(0, 0, 0);
+  // --- FLOOR (back to known-good version) ----------------------------
+  const floorMesh = new Mesh(
+    new PlaneGeometry(40, 40),
+    new MeshStandardMaterial({
+      color: 'white',
+      transparent: true,
+      opacity: 0, // invisible but collidable
+    })
+  );
+  floorMesh.rotation.x = -Math.PI / 2;
+  floorMesh.position.set(0, 0, 0);
 
-const floor = world.createTransformEntity(floorMesh);
-floor.addComponent(LocomotionEnvironment, { type: EnvironmentType.STATIC });
-floor.addComponent(PhysicsShape, { shape: PhysicsShapeType.Auto });
-floor.addComponent(PhysicsBody, { state: PhysicsState.Static });
+  const floor = world.createTransformEntity(floorMesh);
+  floor.addComponent(LocomotionEnvironment, { type: EnvironmentType.STATIC });
+  floor.addComponent(PhysicsShape, { shape: PhysicsShapeType.Auto });
+  floor.addComponent(PhysicsBody, { state: PhysicsState.Static });
 
   // --- BALL ----------------------------------------------------------
-  const ball = world.createTransformEntity(
-    new Mesh(new SphereGeometry(0.15, 12, 12),
-      new MeshStandardMaterial({ color: 'white' })
-    )
+  const ballMesh = new Mesh(
+    new SphereGeometry(0.15, 12, 12),
+    new MeshStandardMaterial({ color: 'white' })
   );
-  ball.object3D.position.set(0.4, 1.6, -1.5);
+  ballMesh.position.set(0.4, 1.6, -1.5);
+  const ball = world.createTransformEntity(ballMesh);
   ball.addComponent(Interactable);
   ball.addComponent(OneHandGrabbable, { translate: true, rotate: true });
   ball.addComponent(PhysicsShape, { shape: PhysicsShapeType.Auto });
@@ -192,43 +196,41 @@ floor.addComponent(PhysicsBody, { state: PhysicsState.Static });
   ball.addComponent(HomeRunBall);
 
   // --- BAT -----------------------------------------------------------
-  const bat = world.createTransformEntity(
-    new Mesh(new BoxGeometry(0.08, 0.9, 0.08),
-      new MeshStandardMaterial({ color: 'brown' })
-    )
+  const batMesh = new Mesh(
+    new BoxGeometry(0.08, 0.9, 0.08),
+    new MeshStandardMaterial({ color: 'brown' })
   );
-  bat.object3D.position.set(-0.4, 1.5, -1.5);
-  bat.object3D.rotation.z = Math.PI / 2;
+  batMesh.position.set(-0.4, 1.5, -1.5);
+  batMesh.rotation.z = Math.PI / 2;
+  const bat = world.createTransformEntity(batMesh);
   bat.addComponent(Interactable);
   bat.addComponent(OneHandGrabbable, { translate: true, rotate: true });
   bat.addComponent(PhysicsShape, { shape: PhysicsShapeType.Auto });
   bat.addComponent(PhysicsBody, { state: PhysicsState.Dynamic });
 
-  // --- GOALIE PHYSICS BLOCKER (INVISIBLE) -----------------------------
-  const blocker = world.createTransformEntity(
-    new Mesh(
-      new BoxGeometry(0.8, 1.9, 0.3),
-      new MeshStandardMaterial({ transparent: true, opacity: 0 })
-    )
+  // --- GOALIE PHYSICS BLOCKER (INVISIBLE) ----------------------------
+  const blockerMesh = new Mesh(
+    new BoxGeometry(0.8, 1.9, 0.3),
+    new MeshStandardMaterial({ transparent: true, opacity: 0 })
   );
-  blocker.object3D.position.set(0, 1, -3.75);
+  blockerMesh.position.set(0, 1, -3.75);
+  const blocker = world.createTransformEntity(blockerMesh);
   blocker.addComponent(PhysicsShape, { shape: PhysicsShapeType.Auto });
   blocker.addComponent(PhysicsBody, { state: PhysicsState.Static });
 
-  // --- GOALIE IMAGE ---------------------------------------------------
+  // --- GOALIE IMAGE --------------------------------------------------
   const goalieTexture = new TextureLoader().load('/gaa_goalie.png');
 
-  const goalieImage = world.createTransformEntity(
-    new Mesh(
-      new PlaneGeometry(1.2, 2.1),
-      new MeshBasicMaterial({
-        map: goalieTexture,
-        transparent: true,
-      })
-    )
+  const goalieMesh = new Mesh(
+    new PlaneGeometry(1.2, 2.1),
+    new MeshBasicMaterial({
+      map: goalieTexture,
+      transparent: true,
+    })
   );
-  goalieImage.object3D.position.set(0, 1.05, -3.9);
-  goalieImage.object3D.lookAt(0, 1.05, 0);
+  goalieMesh.position.set(0, 1.05, -3.9);
+  goalieMesh.lookAt(0, 1.05, 0); // face towards the player/origin
+  world.createTransformEntity(goalieMesh);
 
   // --- SCORING SYSTEM ------------------------------------------------
   world.registerSystem(HomeRunSystem, {
