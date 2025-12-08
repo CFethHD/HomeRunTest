@@ -57,8 +57,12 @@ const HomeRunBall = createComponent('HomeRunBall', {});
 class HomeRunSystem extends createSystem(
   { balls: { required: [HomeRunBall] } },
   {
-    wallZ: { type: Types.Float32, default: -4 },
-    show: { type: Types.Object, default: null },
+    wallZ:    { type: Types.Float32, default: -4 },  // z line to score past
+    show:     { type: Types.Object,  default: null },
+
+    // X range of the posts (goal mouth)
+    goalXMin: { type: Types.Float32, default: -2 },  // left post
+    goalXMax: { type: Types.Float32, default:  2 },  // right post
   }
 ) {
   init() {
@@ -68,13 +72,21 @@ class HomeRunSystem extends createSystem(
   update() {
     if (this.triggered) return;
 
-    const wallZ = this.config.wallZ.peek();
-    const show = this.config.show.peek();
+    const wallZ    = this.config.wallZ.peek();
+    const show     = this.config.show.peek();
+    const goalXMin = this.config.goalXMin.peek();
+    const goalXMax = this.config.goalXMax.peek();
     if (!show) return;
 
     for (const e of this.queries.balls.entities) {
-      const z = e.object3D?.position.z ?? 0;
-      if (z < wallZ) {
+      const pos = e.object3D?.position;
+      if (!pos) continue;
+
+      const x = pos.x;
+      const z = pos.z;
+
+      // ✅ Must cross the z line AND be between the posts (X range)
+      if (z < wallZ && x >= goalXMin && x <= goalXMax) {
         this.triggered = true;
         show('3 Points for Dublin!');
         break;
