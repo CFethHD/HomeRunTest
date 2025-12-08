@@ -87,7 +87,7 @@ const HomeRunBall = createComponent('HomeRunBall', {});
 class HomeRunSystem extends createSystem(
   { balls: { required: [HomeRunBall] } },
   {
-    wallZ:    { type: Types.Float32, default: -4 },  // z line to score past
+    wallZ:    { type: Types.Float32, default: -5 },  // z line to score past
     show:     { type: Types.Object,  default: null },
 
     // X range of the posts (goal mouth)
@@ -115,7 +115,7 @@ class HomeRunSystem extends createSystem(
       const x = pos.x;
       const z = pos.z;
 
-      // ✅ Must cross the z line AND be between the posts (X range)
+      // Must cross the z line AND be between the posts (X range)
       if (z < wallZ && x >= goalXMin && x <= goalXMax) {
         this.triggered = true;
         show('3 Points for Dublin!');
@@ -183,7 +183,7 @@ World.create(document.getElementById('scene-container'), {
   },
   features: { grabbing: true, locomotion: true },
 }).then((world) => {
-  const wallZ = -4;
+  const wallZ = -5;
 
   world
     .registerSystem(PhysicsSystem)
