@@ -30,7 +30,7 @@ import {
 
 import { PanelSystem } from './panel.js';
 
-// --- PROCEDURAL NET TEXTURE -----------------------------------------
+// PROCEDURAL NET TEXTURE
 function createNetTexture() {
   const canvas = document.createElement('canvas');
   canvas.width = 1024;
@@ -70,7 +70,6 @@ const FIELD_SCALE = 1;
 const FIELD_ROT_X = 0;
 const FIELD_ROT_Y = 0;
 const FIELD_ROT_Z = 0;
-/* --------------------------------------------------------- */
 
 const assets = {
   rugbyField: {
@@ -80,7 +79,7 @@ const assets = {
   },
 };
 
-// --- COMPONENT + SYSTEM FOR SCORING ----------------------------------
+// COMPONENT + SYSTEM FOR SCORING
 
 const HomeRunBall = createComponent('HomeRunBall', {});
 
@@ -125,7 +124,7 @@ class HomeRunSystem extends createSystem(
   }
 }
 
-// --- MESSAGE BOARD ---------------------------------------------------
+// MESSAGE BOARD
 
 function createMessageBoard(world) {
   let board = null;
@@ -172,7 +171,7 @@ function createMessageBoard(world) {
   return { show };
 }
 
-// WORLD ---------------------------------------------------------------
+// WORLD 
 
 World.create(document.getElementById('scene-container'), {
   assets,
@@ -193,7 +192,7 @@ World.create(document.getElementById('scene-container'), {
 
   const board = createMessageBoard(world);
 
-  // --- FIELD ---------------------------------------------------------
+  // FIELD 
   try {
     const gltf = AssetManager.getGLTF('rugbyField');
     if (gltf) {
@@ -207,7 +206,7 @@ World.create(document.getElementById('scene-container'), {
     console.error('Failed to load rugbyField:', e);
   }
 
-  // --- FLOOR (back to known-good version) ----------------------------
+  // FLOOR
   const floorMesh = new Mesh(
     new PlaneGeometry(40, 40),
     new MeshStandardMaterial({
@@ -224,7 +223,7 @@ World.create(document.getElementById('scene-container'), {
   floor.addComponent(PhysicsShape, { shape: PhysicsShapeType.Auto });
   floor.addComponent(PhysicsBody, { state: PhysicsState.Static });
 
-  // --- BALL ----------------------------------------------------------
+  // BALL 
   const ballMesh = new Mesh(
     new SphereGeometry(0.10, 12, 12),
     new MeshStandardMaterial({ color: 'white' })
@@ -237,7 +236,7 @@ World.create(document.getElementById('scene-container'), {
   ball.addComponent(PhysicsBody, { state: PhysicsState.Dynamic });
   ball.addComponent(HomeRunBall);
 
-  // --- BAT (HURLEY) ------------------------------------------------------
+  // HURLEY (the bat)
 const hurley = new Group();
 
 // Grip (black tape at the top)
@@ -265,9 +264,7 @@ hurley.add(neckMesh);
 const basGeo = new SphereGeometry(0.09, 16, 16);
 const basMesh = new Mesh(basGeo, handleMat);
 
-// Flatten and widen it so it looks like the paddle
 basMesh.scale.set(1.4, 0.45, 0.9);
-// Move it so it overlaps the neck slightly (no gap)
 basMesh.position.set(0, -0.09, 0.06);
 
 hurley.add(basMesh);
@@ -282,7 +279,7 @@ bat.addComponent(OneHandGrabbable, { translate: true, rotate: true });
 bat.addComponent(PhysicsShape, { shape: PhysicsShapeType.Auto });
 bat.addComponent(PhysicsBody, { state: PhysicsState.Dynamic });
 
-  // --- GOALIE IMAGE --------------------------------------------------
+  // GOALIE IMAGE
   const goalieTexture = new TextureLoader().load('/gaa_goalie.png');
 
   const goalieMesh = new Mesh(
@@ -297,11 +294,11 @@ bat.addComponent(PhysicsBody, { state: PhysicsState.Dynamic });
   goalieMesh.lookAt(0, 1.05, 0); // face towards the player/origin
   world.createTransformEntity(goalieMesh);
 
-  // --- BACK NET IMAGE (BEHIND GOAL) ---------------------------------
+  // BACK NET IMAGE
 const netTexture = createNetTexture();
 
 const netMesh = new Mesh(
-  new PlaneGeometry(8, 10), // size of back net
+  new PlaneGeometry(8, 10), 
   new MeshStandardMaterial({
     map: netTexture,
     transparent: true,
@@ -318,7 +315,7 @@ const backNet = world.createTransformEntity(netMesh);
 backNet.addComponent(PhysicsShape, { shape: PhysicsShapeType.Auto });
 backNet.addComponent(PhysicsBody, { state: PhysicsState.Static });
 
-  // --- SCORING SYSTEM ------------------------------------------------
+  // SCORING SYSTEM
   world.registerSystem(HomeRunSystem, {
     configData: {
       wallZ,
@@ -326,6 +323,6 @@ backNet.addComponent(PhysicsBody, { state: PhysicsState.Static });
     },
   });
 
-  // --- UI ------------------------------------------------------------
+  // UI
   world.registerSystem(PanelSystem);
 });
